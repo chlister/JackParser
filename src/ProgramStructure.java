@@ -16,12 +16,11 @@ import java.util.regex.Matcher;
 
 public class ProgramStructure {
     private static final String intReg = "(\\d+)";
+    private static final String typeReg = "(int|char|boolean)\\w*";
     private static final String symbolReg ="[{}()\\[\\].,;+\\-*/&|<>=~]";
     private static final String keywordReg =
             "(class|constructor|function|method|field|static|var|int|char|boolean|void|true|false|null|this|let|do|if|else|while|return)";
-    private static final String stringCaptureReg = "([\\\"]\\b.*[\\\"])";
     private static final String identifierReg = "([A-Za-z]\\w+|[A-Za-z])";
-    private static final String allSplitterReg = "(\\d+)|([;\\[{}(),.+\\-*/&|<>~=\\]])|([\\\"]\\b.*[\\\"])|([A-Za-z]\\w+|[A-Za-z])";
     private List<String> xml;
     private int lineNum = 0;
     // States
@@ -68,17 +67,14 @@ public class ProgramStructure {
                         xMLStreamWriter.writeEmptyElement(line);
                         xMLStreamWriter.writeEndElement();
                         line = xml.get(lineNum);
-                        if (line.matches("(static|field)\\w+")){ // classVarDec
+                        if (line.matches("(static|field)\\w*")){ // classVarDec
                             classVarDec(line, xMLStreamWriter);
-                            // TODO: when we're done
-
-                        } else if (line.matches("(constructor|function|method)\\w+")){ // subroutineDec
-                            subroutineDec(line);
-                        }
-
-                    }
-                }
-            }
+                        } else if (line.matches("(constructor|function|method)\\w*")){ // subroutineDec
+                            subroutineDec(line, xMLStreamWriter);
+                        } // TODO: throw exception
+                    }// TODO: throw exception
+                }// TODO: throw exception
+            }// TODO: throw exception
 //                    xml.remove(line);
 //                    if (line.matches(keywordReg)) {
 //                        xMLStreamWriter.writeStartElement("class");
@@ -131,6 +127,49 @@ public class ProgramStructure {
         }
     }
 
+    private void subroutineDec(String line, XMLStreamWriter xMLStreamWriter) throws XMLStreamException{
+        lineNum++;
+        xMLStreamWriter.writeStartElement("subroutineDec");
+        xMLStreamWriter.writeStartElement("keyword");
+        xMLStreamWriter.writeEmptyElement(line); // (constructor|function|method)
+        xMLStreamWriter.writeEndElement();
+        line = xml.get(lineNum);
+        if (line.matches(typeReg+"|(void)\\w*")){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("keyword");
+            xMLStreamWriter.writeEmptyElement(line); //(int|char|boolean|void)
+            xMLStreamWriter.writeEndElement();
+            line = xml.get(lineNum);
+            if (line.matches(identifierReg)){
+                lineNum++;
+                xMLStreamWriter.writeStartElement("identifier");
+                xMLStreamWriter.writeEmptyElement(line); // subroutineName
+                xMLStreamWriter.writeEndElement();
+                line = xml.get(lineNum);
+                if (line.matches("\\(")){ // Adds params to subroutine
+                    lineNum++;
+                    xMLStreamWriter.writeStartElement("symbol");
+                    xMLStreamWriter.writeEmptyElement(line); // (
+                    xMLStreamWriter.writeEndElement();
+                    line = xml.get(lineNum);
+                    if (line.matches(typeReg)) // Has type --> must be a param
+                        AddParam(line, xMLStreamWriter);
+                    if (line.matches("\\)")){
+                        lineNum++;
+                        xMLStreamWriter.writeStartElement("symbol");
+                        xMLStreamWriter.writeEmptyElement(line); // (
+                        xMLStreamWriter.writeEndElement();
+                        line = xml.get(lineNum);
+                    } // TODO: throw exception
+                }
+                if (line.matches("\\{")){ // Adds subroutineBody
+                    AddSubroutineBody(line, xMLStreamWriter);
+                }
+            }
+        }
+
+    }
+
     private void classVarDec(String line, XMLStreamWriter xMLStreamWriter) throws XMLStreamException {
         lineNum++;
         xMLStreamWriter.writeStartElement("classVarDec");
@@ -153,11 +192,18 @@ public class ProgramStructure {
                     xMLStreamWriter.writeEmptyElement(line);
                     xMLStreamWriter.writeEndElement();
                     AddIdentifier(line, xMLStreamWriter);
-//                    line = xml.get(lineNum);
-                }
+                    line = xml.get(lineNum);
+                } // Else fail
             } // Else fail
-        }
+        } // Else fail
         xMLStreamWriter.writeEndElement(); // Ending classVarDec
+        // TODO: After classVarDec another process can begin
+        if (line.matches("(static|field)\\w+")) // classVarDec
+            classVarDec(line,xMLStreamWriter);
+
+        else if (line.matches("(constructor|function|method)\\w+")){ // subroutineDec
+            subroutineDec(line, xMLStreamWriter);
+        } // TODO:throw exception
     }
 
     private void AddIdentifier(String line, XMLStreamWriter xMLStreamWriter) throws XMLStreamException {
@@ -170,18 +216,9 @@ public class ProgramStructure {
             xMLStreamWriter.writeStartElement("symbol");
             xMLStreamWriter.writeEmptyElement(line);
             xMLStreamWriter.writeEndElement();
-            AddIdentifier(line, xMLStreamWriter);}
+            AddIdentifier(line, xMLStreamWriter);
+        }
     }
 
-
-    private void ClassStructure(List<String> xml, XMLStreamWriter xMLStreamWriter) throws XMLStreamException {
-        String line = xml.get(0);
-        xml.remove(line);
-        if (line.matches(identifierReg)){
-            xMLStreamWriter.writeStartElement("identifier");
-            xMLStreamWriter.writeEmptyElement(line);
-            xMLStreamWriter.writeEndElement();
-        } else if (line.matches())
-    }
 }
 
