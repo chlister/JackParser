@@ -32,10 +32,11 @@ public class Tokenizer {
     /*
 
      */
-    public void ReadDocument(String fileName) {
+    public StringBuilder ReadDocument(String fileName) {
         // expects a .jack file
 //        System.out.println(symbolReg);
 //        System.out.println(keywordReg);
+        StringBuilder res = new StringBuilder();
         try {
             StringWriter stringWriter = new StringWriter();
 
@@ -60,30 +61,39 @@ public class Tokenizer {
                     while (m.find()){
                         String match = m.group();
                         if(match.matches(keywordReg)){
+                            res.append(match);
                             System.out.println("Keyword: " + match);
                             xMLStreamWriter.writeStartElement("keyword");
                             xMLStreamWriter.writeCharacters(match);
                             xMLStreamWriter.writeEndElement();
                         }
                         else if (match.matches(symbolReg)) {
+                            res.append(match);
+
                             System.out.println("Symbol: " + match);
                             xMLStreamWriter.writeStartElement("symbol");
                             xMLStreamWriter.writeCharacters(match);
                             xMLStreamWriter.writeEndElement();
 
                         } else if (match.matches(intReg)){
+                            res.append(match);
+
                             System.out.println("IntegerConstant: " + match);
                             xMLStreamWriter.writeStartElement("integerConstant");
                             xMLStreamWriter.writeCharacters(match);
                             xMLStreamWriter.writeEndElement();
 
                         } else if (match.matches(identifierReg)){ //
+                            res.append(match);
+
                             System.out.println("Identifier: " + match);
                             xMLStreamWriter.writeStartElement("identifier");
                             xMLStreamWriter.writeCharacters(match);
                             xMLStreamWriter.writeEndElement();
 
                         } else if (match.matches(stringCaptureReg)){
+                            res.append(match);
+
                             System.out.println("StringConstant: " + match);
                             xMLStreamWriter.writeStartElement("stringConstant");
                             xMLStreamWriter.writeCharacters(match);
@@ -99,7 +109,6 @@ public class Tokenizer {
             xMLStreamWriter.close();
 
             String xml = stringWriter.getBuffer().toString();
-
             stringWriter.close();
             System.out.println(xml);
 
@@ -109,5 +118,6 @@ public class Tokenizer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return res;
     }
 }
