@@ -75,6 +75,7 @@ public class ProgramStructure {
                     }// TODO: throw exception
                 }// TODO: throw exception
             }// TODO: throw exception
+
 //                    xml.remove(line);
 //                    if (line.matches(keywordReg)) {
 //                        xMLStreamWriter.writeStartElement("class");
@@ -164,9 +165,45 @@ public class ProgramStructure {
                 }
                 if (line.matches("\\{")){ // Adds subroutineBody
                     AddSubroutineBody(line, xMLStreamWriter);
-                }
+                } // TODO: throw exception
             }
         }
+        xMLStreamWriter.writeEndElement();
+    }
+
+    private void AddSubroutineBody(String line, XMLStreamWriter xMLStreamWriter) throws XMLStreamException {
+        lineNum++;
+        xMLStreamWriter.writeStartElement("subroutineBody");
+        xMLStreamWriter.writeStartElement("symbol");
+        xMLStreamWriter.writeStartElement(line);
+        xMLStreamWriter.writeEndElement();
+        line=xml.get(lineNum);
+        if (line.matches("(var)\\w*")){ // TODO: varDec
+            AddVarDec(line, xMLStreamWriter);
+        }
+        line = xml.get(lineNum);
+        if(line.matches("")){ // TODO: Statements!
+
+        }
+    }
+
+    private void AddVarDec(String line, XMLStreamWriter xMLStreamWriter) throws XMLStreamException {
+        lineNum++;
+        xMLStreamWriter.writeStartElement("varDec");
+        xMLStreamWriter.writeStartElement("keyword");
+        xMLStreamWriter.writeStartElement(line);
+        xMLStreamWriter.writeEndElement();
+        line=xml.get(lineNum);
+        if(line.matches(typeReg)){
+            xMLStreamWriter.writeStartElement("identifier");
+            xMLStreamWriter.writeStartElement(line);
+            xMLStreamWriter.writeEndElement();
+        } // TODO: Throw type error
+        if (line.matches(identifierReg)){
+            AddIdentifier(line,xMLStreamWriter);
+        } // TODO: Throw identifier needed
+
+        xMLStreamWriter.writeEndElement();
 
     }
 
