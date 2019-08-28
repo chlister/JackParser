@@ -56,7 +56,8 @@ public class Tokenizer {
 //                System.out.println(line);
 
                 if (!line.startsWith("//") && !line.startsWith("/**") && !line.isBlank()) { // filter comments and blank lines
-                    line = line.substring(0, line.indexOf("//"));
+                    if (line.contains("//"))
+                        line = line.substring(0, line.indexOf("//"));
                     String allSplitter = "(\\d+)|([;\\[{}(),.+\\-*/&|<>~=\\]])|([\\\"]\\b.*[\\\"])|([A-Za-z]\\w+|[A-Za-z])";
 
                     Pattern pat = Pattern.compile(allSplitter);
