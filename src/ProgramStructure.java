@@ -24,6 +24,7 @@ public class ProgramStructure {
     private static final String unaryTermReg = "([-~])\\w*";
     private static final String opReg = "([+\\-*/&|<>=])\\w*";
     private static final String keywordConstantReg = "(true|false|null|this)\\w*";
+    private static final String stringReg = "([\\\"]\\b.*[\\\"])";
     private List<String> xml;
     private int lineNum = 0;
     private StringWriter stringWriter;
@@ -207,7 +208,7 @@ public class ProgramStructure {
         lineNum++;
         xMLStreamWriter.writeStartElement("subroutineBody");
         xMLStreamWriter.writeStartElement("symbol");
-        xMLStreamWriter.writeStartElement(line);
+        xMLStreamWriter.writeCharacters(line);
         xMLStreamWriter.writeEndElement();
         line=xml.get(lineNum);
         if (line.matches("(var)\\w*")){
@@ -217,7 +218,7 @@ public class ProgramStructure {
             if (line.matches(";")){
                 lineNum++;
                 xMLStreamWriter.writeStartElement("symbol");
-                xMLStreamWriter.writeStartElement(line);
+                xMLStreamWriter.writeCharacters(line);
                 xMLStreamWriter.writeEndElement();
                 xMLStreamWriter.writeEndElement(); // ends varDec
             } // TODO: Throw closing tag missing
@@ -238,18 +239,25 @@ public class ProgramStructure {
             lineNum++;
             xMLStreamWriter.writeStartElement("letStatement");
             xMLStreamWriter.writeStartElement("keyword");
-            xMLStreamWriter.writeStartElement(line);
+            xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
             line = xml.get(lineNum);
-            if (line.matches(identifierReg)){
+            if (line.matches(identifierReg)){ // varName
                 lineNum++;
                 xMLStreamWriter.writeStartElement("identifier");
-                xMLStreamWriter.writeStartElement(line);
+                xMLStreamWriter.writeCharacters(line);
                 xMLStreamWriter.writeEndElement();
                 line = xml.get(lineNum);
-                if (line.matches("\\[")){ // Has [expression]
+                if (line.matches(opReg)){ // operator found
+                    lineNum++;
+                    xMLStreamWriter.writeStartElement("symbol");
+                    xMLStreamWriter.writeCharacters(line);
+                    xMLStreamWriter.writeEndElement();
+                    line = xml.get(lineNum);
                     Expressions(line);
                 }
+//                else if(){ // TODO: Has [expression]
+//                }
             }
 
             xMLStreamWriter.writeEndElement(); // Ends letStatement
@@ -266,12 +274,33 @@ public class ProgramStructure {
 
     private void Expressions(String line) throws XMLStreamException {
         lineNum++;
-        xMLStreamWriter.writeStartElement("symbol");
-        xMLStreamWriter.writeStartElement(line);
-        xMLStreamWriter.writeEndElement();
         xMLStreamWriter.writeStartElement("expression");
+        xMLStreamWriter.writeStartElement("term");
+        xMLStreamWriter.writeStartElement("symbol");
+        xMLStreamWriter.writeCharacters(line);
+        xMLStreamWriter.writeEndElement();
         line = xml.get(lineNum);
-        if (line.matches(intReg+"|"+identifierReg+"|"+unaryTermReg+"|"+keywordConstantReg+"|"+opReg+"|"))
+        if (line.matches(intReg)){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("integerConstant");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+        } else if (line.matches(stringReg)){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("stringConstant");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+        } else if(line.matches(keywordConstantReg)){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("keywordConstant");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+        } else if(line.matches(unaryTermReg)){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("unaryOp");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+        }
 
 
     }
@@ -279,19 +308,19 @@ public class ProgramStructure {
     private void AddVarDec(String line) throws XMLStreamException {
         lineNum++;
         xMLStreamWriter.writeStartElement("keyword");
-        xMLStreamWriter.writeStartElement(line);
+        xMLStreamWriter.writeCharacters(line);
         xMLStreamWriter.writeEndElement();
         line=xml.get(lineNum);
         if(line.matches(typeReg)){
             lineNum++;
             xMLStreamWriter.writeStartElement("keyword");
-            xMLStreamWriter.writeStartElement(line);
+            xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
             line=xml.get(lineNum);
             if (line.matches(identifierReg)){
                 lineNum++;
                 xMLStreamWriter.writeStartElement("identifier");
-                xMLStreamWriter.writeStartElement(line);
+                xMLStreamWriter.writeCharacters(line);
                 xMLStreamWriter.writeEndElement();
                 line=xml.get(lineNum);
                 if (line.matches(",")){
