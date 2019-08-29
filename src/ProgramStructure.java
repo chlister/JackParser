@@ -254,13 +254,27 @@ public class ProgramStructure {
                     xMLStreamWriter.writeCharacters(line);
                     xMLStreamWriter.writeEndElement();
                     line = xml.get(lineNum);
+                    xMLStreamWriter.writeStartElement("expression");
+
                     Expressions(line);
-                }
+
+                    xMLStreamWriter.writeEndElement(); // Closing expression tag
+                    line = xml.get(lineNum);
+                    if (line.matches(";")){
+                        lineNum++;
+                        xMLStreamWriter.writeStartElement("symbol");
+                        xMLStreamWriter.writeCharacters(line);
+                        xMLStreamWriter.writeEndElement();
+                    } // TODO: semicolon missing
+                } // TODO: no operator found
 //                else if(){ // TODO: Has [expression]
 //                }
             }
-
             xMLStreamWriter.writeEndElement(); // Ends letStatement
+            line = xml.get(lineNum);
+            if (line.matches("(let|if|while|do|return)")){
+                Statements(line);
+            }
         } else if  (line.matches("if")) { // TODO: if statement
 
         } else if  (line.matches("while")) { // TODO: while statement
@@ -273,36 +287,86 @@ public class ProgramStructure {
     }
 
     private void Expressions(String line) throws XMLStreamException {
-        lineNum++;
-        xMLStreamWriter.writeStartElement("expression");
         xMLStreamWriter.writeStartElement("term");
-        xMLStreamWriter.writeStartElement("symbol");
-        xMLStreamWriter.writeCharacters(line);
-        xMLStreamWriter.writeEndElement();
-        line = xml.get(lineNum);
+
+        //        lineNum++;
+//        xMLStreamWriter.writeStartElement("identifier");
+//        xMLStreamWriter.writeCharacters(line);
+//        xMLStreamWriter.writeEndElement();
+//        line = xml.get(lineNum);
         if (line.matches(intReg)){
             lineNum++;
             xMLStreamWriter.writeStartElement("integerConstant");
             xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
+            line=xml.get(lineNum);
+            CheckEndOfExpression(line);
         } else if (line.matches(stringReg)){
             lineNum++;
             xMLStreamWriter.writeStartElement("stringConstant");
             xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
+            line=xml.get(lineNum);
+            CheckEndOfExpression(line);
         } else if(line.matches(keywordConstantReg)){
             lineNum++;
             xMLStreamWriter.writeStartElement("keywordConstant");
             xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
+            line=xml.get(lineNum);
+            CheckEndOfExpression(line);
         } else if(line.matches(unaryTermReg)){
             lineNum++;
             xMLStreamWriter.writeStartElement("unaryOp");
             xMLStreamWriter.writeCharacters(line);
             xMLStreamWriter.writeEndElement();
-        }
+            line=xml.get(lineNum);
+            CheckEndOfExpression(line);
+        } else if(line.matches(identifierReg)){ // VarName
+            lineNum++;
+            xMLStreamWriter.writeStartElement("identifier");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+            line = xml.get(lineNum);
+            if (line.matches(".")){
+                lineNum++;
+                xMLStreamWriter.writeStartElement("identifier");
+                xMLStreamWriter.writeCharacters(line);
+                xMLStreamWriter.writeEndElement();
+                line = xml.get(lineNum);
+                if (line.matches(identifierReg)){ // SubroutineName
+                    lineNum++;
+                    xMLStreamWriter.writeStartElement("identifier");
+                    xMLStreamWriter.writeCharacters(line);
+                    xMLStreamWriter.writeEndElement();
+                    line = xml.get(lineNum);
+                    CheckEndOfExpression(line);
+                } // TODO: Throw no subroutineName found
+            } // TODO: No subroutine call found
+        } // TODO: no identifier found
+        xMLStreamWriter.writeEndElement(); // Closing term tag
+    }
 
-
+    private void CheckEndOfExpression(String line) throws XMLStreamException {
+        if (line.matches("\\(")){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("symbol");
+            xMLStreamWriter.writeCharacters(line);
+            xMLStreamWriter.writeEndElement();
+            line = xml.get(lineNum);
+            xMLStreamWriter.writeStartElement("expression"); // Start expression
+            if (!line.matches("\\)")){ // Must be more expressions
+                Expressions(line);
+            }
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
+                lineNum++;
+                xMLStreamWriter.writeStartElement("symbol");
+                xMLStreamWriter.writeCharacters(line);
+                xMLStreamWriter.writeEndElement();
+            } // TODO: End param tag missing
+            xMLStreamWriter.writeEndElement(); // End expression
+        } // TODO: Throw start param tag missing
     }
 
     private void AddVarDec(String line) throws XMLStreamException {
