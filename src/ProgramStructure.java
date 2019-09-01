@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.File;
 
+import javax.sql.rowset.spi.XmlWriter;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -18,7 +19,7 @@ import java.util.regex.Matcher;
 
 public class ProgramStructure  {
     private static final String intReg = "(\\d+)";
-    private static final String typeReg = "(int|char|boolean)\\w*";
+    private static final String typeReg = "(int|char|boolean|[A-Za-z]\\w+)\\w*";
     private static final String symbolReg ="[{}()\\[\\].,;+\\-*/&|<>=~]";
     private static final String keywordReg =
             "(class|constructor|function|method|field|static|var|int|char|boolean|void|true|false|null|this|let|do|if|else|while|return)";
@@ -33,13 +34,15 @@ public class ProgramStructure  {
     private XMLOutputFactory xMLOutputFactory;
     private XMLStreamWriter xMLStreamWriter;
 
+
+
     /**
      * Method will need a list of lines from the tokenizer
      * It runs via a linenumber, which will get incremented in each method - the next line will thereafter
      * get extracted by the method and a if/else statement will interpret the next line, deciding if the
      * next statement can be executed or not
      */
-    public void ReadDocument(List<String> _xml) {
+    public void ReadDocument(List<String> _xml) throws XMLStreamException, IOException, JackCompilerException {
         try {
             xml=_xml; // TODO: put in ctor
             stringWriter = new StringWriter();
@@ -70,19 +73,28 @@ public class ProgramStructure  {
                         if (line.matches("(static|field)\\w*")) { // classVarDec
                             classVarDec(line);
                             line = xml.get(lineNum);
+                        }
                             if (line.matches("(constructor|function|method)\\w*")) { // subroutineDec
                                 subroutineDec(line);
-                            } // TODO: throw exception
-                        } // TODO: Throw Exception
-                    }// TODO: throw exception
-                }// TODO: throw exception
-            }// TODO: throw exception
+                            }else {throw new JackCompilerException("No subroutine declaration found", new Throwable());}
+                    }else {throw new JackCompilerException("No start body of class found", new Throwable());}
+                }else {throw new JackCompilerException("Class identifier missing", new Throwable());}
+            } else {throw new JackCompilerException("Class keyword missing", new Throwable());}
         }catch(Exception e){
             e.printStackTrace();
         }
+        xMLStreamWriter.writeEndElement();
+        xMLStreamWriter.writeEndDocument();
+
+        xMLStreamWriter.flush();
+        xMLStreamWriter.close();
+
+        String xml = stringWriter.getBuffer().toString();
+        stringWriter.close();
+        System.out.println(xml);
     }
 
-    private void subroutineDec(String line) throws XMLStreamException{
+    private void subroutineDec(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         xMLStreamWriter.writeStartElement("subroutineDec");
         AddXMLTag("keyword", line);// (constructor|function|method)
@@ -119,7 +131,7 @@ public class ProgramStructure  {
         xMLStreamWriter.writeEndElement();
     }
 
-    private void AddParam(String line) throws XMLStreamException {
+    private void AddParam(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         AddXMLTag("keyword", line);
         line=xml.get(lineNum);
@@ -127,6 +139,7 @@ public class ProgramStructure  {
             lineNum++;
             AddXMLTag("identifier", line);
             line=xml.get(lineNum);
+            String nextLine = xml.get(lineNum+1);
             if (line.matches(",")) {
                 lineNum++;
                 AddXMLTag("symbol", line);
@@ -136,7 +149,7 @@ public class ProgramStructure  {
         } // TODO: Throw identifier missing
     }
 
-    private void AddSubroutineBody(String line) throws XMLStreamException {
+    private void AddSubroutineBody(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         xMLStreamWriter.writeStartElement("subroutineBody");
         AddXMLTag("symbol", line);
@@ -153,14 +166,13 @@ public class ProgramStructure  {
         } // TODO: Throw variable Declarations missing
         line = xml.get(lineNum);
         if(line.matches("(let|if|while|do|return)")){ // TODO: Statements!
-            lineNum++;
             xMLStreamWriter.writeStartElement("statements");
             Statements(line);
             xMLStreamWriter.writeEndElement(); // Ends statements
         } // TODO: Throw missing statement declaration
     }
 
-    private void Statements(String line) throws XMLStreamException {
+    private void Statements(String line) throws XMLStreamException, JackCompilerException {
         if (line.matches("let")) {
             lineNum++;
             xMLStreamWriter.writeStartElement("letStatement");
@@ -179,13 +191,8 @@ public class ProgramStructure  {
                     Expressions(line);
 
                     xMLStreamWriter.writeEndElement(); // Closing expression tag
-                    line = xml.get(lineNum);
-                    if (line.matches(";")) {
-                        lineNum++;
-                        AddXMLTag("symbol", line);
-                    } // TODO: semicolon missing
                 } // TODO: no operator found
-                else if (line.matches("\\[")) { // TODO: Has [expression]
+                else if (line.matches("\\[")) {
                     lineNum++;
                     AddXMLTag("symbol", line);
                     line = xml.get(lineNum);
@@ -197,13 +204,28 @@ public class ProgramStructure  {
 
                     line = xml.get(lineNum);
                     AddXMLTag("symbol", line); // ]
+                    lineNum++;
                     line = xml.get(lineNum);
                     if (line.matches(opReg)) {
                         lineNum++;
+                        AddXMLTag("symbol", line);
+                        line = xml.get(lineNum);
+                        xMLStreamWriter.writeStartElement("expression");
                         Expressions(line);
+                        xMLStreamWriter.writeEndElement(); // close expression tag
                     } // TODO: Throw operator missing
                 } // TODO: Throw operator or invalid expression signature
             } // TODO: Throw identifier missing
+            line = xml.get(lineNum);
+            if (line.matches("]")){
+                lineNum++;
+                AddXMLTag("symbol", line);
+            }
+            line = xml.get(lineNum);
+            if (line.matches(";")) {
+                lineNum++;
+                AddXMLTag("symbol", line);
+            } // TODO: semicolon missing
             xMLStreamWriter.writeEndElement(); // Ends letStatement
         }
         else if (line.matches("if")) { // TODO: if statement
@@ -260,7 +282,6 @@ public class ProgramStructure  {
             lineNum++;
             xMLStreamWriter.writeStartElement("whileStatement");
             AddXMLTag("keyword", line);
-            lineNum++;
             line = xml.get(lineNum);
             if (line.matches("\\(")){
                 lineNum++;
@@ -329,8 +350,23 @@ public class ProgramStructure  {
     }
 
 
-    private void Expressions(String line) throws XMLStreamException {
+    private void Expressions(String line) throws XMLStreamException, JackCompilerException {
         xMLStreamWriter.writeStartElement("term");
+        Term(line);
+        xMLStreamWriter.writeEndElement(); // Closing term tag
+        line = xml.get(lineNum);
+        if(line.matches(opReg)){
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            if (!line.matches("\\)")){
+                Expressions(line);
+
+            }
+        }
+    }
+
+    private void Term(String line) throws XMLStreamException, JackCompilerException {
         if (line.matches(intReg)){
             lineNum++;
             AddXMLTag("integerConstant", line);
@@ -365,9 +401,10 @@ public class ProgramStructure  {
               -> '[' (expression            ((varName[expression]))
               -> ; (Close the expression)   ((varName;))
              */
-            if (line.matches(".")){ // SubroutineCall!
-                SubroutineCall(line); }
-            else if (line.matches("\\[")) { // expression
+            if (line.matches("[.]")){ // SubroutineCall!
+                SubroutineCall(line);
+            }
+            else if (line.matches("[\\[]")) { // expression
                 lineNum++;
                 AddXMLTag("symbol", line);
                 line = xml.get(lineNum);
@@ -377,9 +414,6 @@ public class ProgramStructure  {
 
                 xMLStreamWriter.writeEndElement();
             }
-            if (line.matches("]")){
-                lineNum++;
-            } // TODO: No subroutine call or end line found
         } // TODO: no identifier found
         else if (line.matches(opReg)){
             lineNum++;
@@ -387,10 +421,9 @@ public class ProgramStructure  {
             line = xml.get(lineNum);
             Expressions(line);
         }
-        xMLStreamWriter.writeEndElement(); // Closing term tag
     }
 
-    private void CheckEndOfExpression(String line) throws XMLStreamException {
+    private void CheckEndOfExpression(String line) throws XMLStreamException, JackCompilerException {
         if (line.matches("\\(")){
             lineNum++;
             AddXMLTag("symbol", line);
@@ -408,7 +441,7 @@ public class ProgramStructure  {
         } // TODO: Throw start param tag missing
     }
 
-    private void AddVarDec(String line) throws XMLStreamException {
+    private void AddVarDec(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         AddXMLTag("keyword", line);
         line=xml.get(lineNum);
@@ -420,19 +453,29 @@ public class ProgramStructure  {
                 lineNum++;
                 AddXMLTag("identifier", line);
                 line=xml.get(lineNum);
+                String nextLine=xml.get(lineNum + 1);
                 if (line.matches(",")){
-                    AddIdentifier(line);
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    AddIdentifier(xml.get(lineNum));
                 }
-            } // TODO: Throw identifier needed
-        } // TODO: Throw type error
+                else if (line.matches(";") && nextLine.matches("(var)\\w*")){
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    xMLStreamWriter.writeEndElement();
+                    xMLStreamWriter.writeStartElement("varDec");
+                    AddVarDec(nextLine);
+                }
+            } else {throw new JackCompilerException("Identifier missing", new Throwable());}
+        } else {throw new JackCompilerException("Unknown type: " + line, new Throwable());}
     }
 
-    private void classVarDec(String line) throws XMLStreamException {
+    private void classVarDec(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         xMLStreamWriter.writeStartElement("classVarDec");
         AddXMLTag("keyword", line);// (static|field)
         line = xml.get(lineNum);
-        if (line.matches("(int|char|boolean)\\w+|"+identifierReg)){ // Needs type TODO: extend with className
+        if (line.matches(typeReg)){ // Needs type TODO: extend with className
             lineNum++;
             AddXMLTag("keyword", line); //(int|char|boolean|className)
             line = xml.get(lineNum);
@@ -449,7 +492,7 @@ public class ProgramStructure  {
         xMLStreamWriter.writeEndElement(); // Ending classVarDec
     }
 
-    private void AddIdentifier(String line) throws XMLStreamException {
+    private void AddIdentifier(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
         AddXMLTag("identifier", line);
         line = xml.get(lineNum);
@@ -461,9 +504,9 @@ public class ProgramStructure  {
         }
     }
 
-    private void SubroutineCall(String line) throws XMLStreamException {
+    private void SubroutineCall(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
-        AddXMLTag("identifier", line);
+        AddXMLTag("symbol", line);
         line = xml.get(lineNum);
         if (line.matches(identifierReg)){ // SubroutineName
             lineNum++;
@@ -474,7 +517,9 @@ public class ProgramStructure  {
                 AddXMLTag("symbol", line);
                 line = xml.get(lineNum);
                 xMLStreamWriter.writeStartElement("expressionList");
+                xMLStreamWriter.writeStartElement("expression");
                 Expressions(line);
+                xMLStreamWriter.writeEndElement();
                 xMLStreamWriter.writeEndElement();
                 line = xml.get(lineNum);
                 if (line.matches("\\)")){

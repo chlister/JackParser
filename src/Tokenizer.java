@@ -117,9 +117,7 @@ public class Tokenizer {
             System.out.println(xml);
 
 
-        } catch (XMLStreamException | FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (XMLStreamException | IOException e) {
             e.printStackTrace();
         }
         return res;
