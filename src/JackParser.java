@@ -8,7 +8,7 @@ public class JackParser {
     public static void main(String args[]){
         // Later args will contain the filename
         // Documents/School/nand2tetris/nand2tetris/projects/10/ArrayTest/Main.jack
-        String fileName = "/home/zbcmakar/Documents/School/nand2tetris/nand2tetris/projects/10/Square/Main.jack";
+        String fileName = "/home/zbcmakar/Documents/School/nand2tetris/nand2tetris/projects/10/Square/Square.jack";
         // win - E:\OneDrive - EFIF\H5\nand2tetris softwaresuite-20190805\nand2tetris\projects\10\ArrayTest
 //        String fileName = "E:\\OneDrive - EFIF\\H5\\nand2tetris softwaresuite-20190805\\nand2tetris\\projects\\10\\ArrayTest\\Main.jack";
         List<String> tokens;

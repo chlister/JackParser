@@ -1,5 +1,6 @@
 import error_pack.JackCompilerException;
 
+import java.beans.Expression;
 import java.io.IOException;
 import java.io.StringWriter;
 
@@ -171,14 +172,13 @@ public class ProgramStructure  {
         AddXMLTag("symbol", line);
         line=xml.get(lineNum);
         if (line.matches(varReg)){
-            xMLStreamWriter.writeStartElement("varDec");
             AddVarDec(line); // 1 to many
-            line = xml.get(lineNum);
-            if (line.matches(";")){
-                lineNum++;
-                AddXMLTag("symbol", line);
-                xMLStreamWriter.writeEndElement(); // ends varDec
-            } // TODO: Throw closing tag missing
+//            line = xml.get(lineNum);
+//            if (line.matches(";")){
+//                lineNum++;
+//                AddXMLTag("symbol", line);
+//                xMLStreamWriter.writeEndElement(); // ends varDec
+//            } // TODO: Throw closing tag missing
         } // TODO: Throw variable Declarations missing
         line = xml.get(lineNum);
         if(line.matches("(let|if|while|do|return)")){ // TODO: Statements!
@@ -231,10 +231,15 @@ public class ProgramStructure  {
                             lineNum++;
                             AddXMLTag("symbol", line);
                             line = xml.get(lineNum);
-                            if (line.matches("(else)\\w*")) {
+                            if (line.matches("(else)\\w*")) { // TODO: Else statement
                                 lineNum++;
                                 AddXMLTag("keyword", line);
                                 line = xml.get(lineNum);
+                                if (line.matches("\\{")){
+                                    lineNum++;
+                                    AddXMLTag("keyword", line);
+                                    line = xml.get(lineNum);
+                                } else {throw new JackCompilerException("Start of else statement missing", new Throwable());}
                                 xMLStreamWriter.writeStartElement("statements");
                                 Statements(line);
                                 xMLStreamWriter.writeEndElement();
@@ -242,16 +247,13 @@ public class ProgramStructure  {
                             line = xml.get(lineNum);
                             if (line.matches("}")) {
                                 lineNum++;
-                                xMLStreamWriter.writeStartElement("whileStatement");
                                 AddXMLTag("symbol", line);
-                                line = xml.get(lineNum);
-
+                                xMLStreamWriter.writeEndElement(); // close if statement
                             } // TODO: Throw missing closing tag
                         }
                     } // TODO: Throw missing closing tag
                 } // TODO: Throw missing curly brackets
             } // TODO: Throw missing closing tag
-            xMLStreamWriter.writeEndElement(); // close if statement
 
         }
         else if (line.matches("while")) { // TODO: while statement
@@ -283,31 +285,26 @@ public class ProgramStructure  {
                         if (line.matches("}")) {
                             lineNum++;
                             AddXMLTag("symbol", line);
+                            xMLStreamWriter.writeEndElement(); // close while statement
                         } // TODO: throw closing tag missing
                     } // TODO: throw opening tag missing
                 } // TODO: Throw missing closing tag
             } // TODO: Opening tag missing
-            xMLStreamWriter.writeEndElement(); // close while statement
         }
         else if (line.matches("do")) {
             lineNum++;
             xMLStreamWriter.writeStartElement("doStatement");
             AddXMLTag("keyword", line);
             line = xml.get(lineNum);
-            if(line.matches(identifierReg)){ // subroutineName
-                lineNum++;
-                AddXMLTag("identifier", line);
-                line = xml.get(lineNum);
-                if (line.matches(".")) { // SubroutineCall
-                    SubroutineCall(line);
-                } // TODO: dot notation missing
+            if(line.matches(identifierReg)){ // has subroutineName
+                SubroutineCall(line);
                 line = xml.get(lineNum);
                 if (line.matches(";")){
                     AddXMLTag("symbol", line);
                     lineNum++;
+                    xMLStreamWriter.writeEndElement(); // close do statement
                 }
             } // TODO: no identifier found
-            xMLStreamWriter.writeEndElement(); // close do statement
         }
         else if (line.matches("return")) {
             lineNum++;
@@ -323,8 +320,8 @@ public class ProgramStructure  {
             if (line.matches(";")){
                 AddXMLTag("symbol", line);
                 lineNum++;
+                xMLStreamWriter.writeEndElement(); // close return statement
             }
-            xMLStreamWriter.writeEndElement(); // close return statement
         }
         line = xml.get(lineNum);
         if (line.matches("(let|if|while|do|return)")) {
@@ -375,16 +372,30 @@ public class ProgramStructure  {
     }
 
 
-    private void Expressions(String line) throws XMLStreamException, JackCompilerException {
-        xMLStreamWriter.writeStartElement("term");
-        Term(line);
-        xMLStreamWriter.writeEndElement(); // Closing term tag
+    private void ExpressionList(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("expression");
+        Expressions(line);
         line = xml.get(lineNum);
-        if(line.matches(opReg)){
+        xMLStreamWriter.writeEndElement();
+        if (line.matches(",")){
             lineNum++;
             AddXMLTag("symbol", line);
             line = xml.get(lineNum);
-            if (!line.matches("\\)")){
+            ExpressionList(line);
+        }
+    }
+
+
+    private void Expressions(String line) throws XMLStreamException, JackCompilerException {
+        if (!line.matches(opReg)){
+            xMLStreamWriter.writeStartElement("term");
+            Term(line);
+            xMLStreamWriter.writeEndElement(); // Closing term tag
+            line = xml.get(lineNum);
+            if(line.matches(opReg)){
+                lineNum++;
+                AddXMLTag("symbol", line);
+                line = xml.get(lineNum);
                 Expressions(line);
             }
         }
@@ -405,13 +416,16 @@ public class ProgramStructure  {
         }
         else if(line.matches(keywordConstantReg)){
             lineNum++;
-            AddXMLTag("keywordConstant", line);
+            AddXMLTag("keyword", line);
             line=xml.get(lineNum);
             CheckEndOfExpression(line);
         }
         else if(line.matches(unaryTermReg)){
             lineNum++;
             AddXMLTag("symbol", line);
+            line=xml.get(lineNum);
+
+            Expressions(line);
             line=xml.get(lineNum);
             CheckEndOfExpression(line);
         }
@@ -451,12 +465,21 @@ public class ProgramStructure  {
 //
 //                xMLStreamWriter.writeEndElement();
 //            }
-        } // TODO: no identifier found
-        else if (line.matches(opReg)){
+        }
+        else if(line.matches("\\(")){
             lineNum++;
             AddXMLTag("symbol", line);
             line = xml.get(lineNum);
-            Expressions(line);
+            xMLStreamWriter.writeStartElement("expression");
+            xMLStreamWriter.writeStartElement("term");
+            Term(line);
+            xMLStreamWriter.writeEndElement();
+            xMLStreamWriter.writeEndElement();
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
+                lineNum++;
+                AddXMLTag("symbol", line);
+            }
         }
     }
 
@@ -480,6 +503,7 @@ public class ProgramStructure  {
 
     private void AddVarDec(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
+        xMLStreamWriter.writeStartElement("varDec");
         AddXMLTag("keyword", line);
         line=xml.get(lineNum);
         if(line.matches(typeReg)){
@@ -494,20 +518,20 @@ public class ProgramStructure  {
                 if (line.matches(",")){
                     lineNum++;
                     AddXMLTag("symbol", line);
-                    AddIdentifier(xml.get(lineNum));
+                    line = xml.get(lineNum);
+                    AddIdentifier(line);
                 }
-                else if (line.matches(";") && nextLine.matches("(var)\\w*")){
+                line = xml.get(lineNum);
+                if (line.matches(";")){
                     lineNum++;
                     AddXMLTag("symbol", line);
                     xMLStreamWriter.writeEndElement();
-                    xMLStreamWriter.writeStartElement("varDec");
-                    AddVarDec(nextLine);
                 }
             } else {throw new JackCompilerException("Identifier missing", new Throwable());}
         } else {throw new JackCompilerException("Unknown type: " + line, new Throwable());}
         line = xml.get(lineNum);
         if (line.matches("(var)\\w*"))
-            AddSubroutineBody(line);
+            AddVarDec(line);
     }
 
     private void classVarDec(String line) throws XMLStreamException, JackCompilerException {
@@ -549,31 +573,40 @@ public class ProgramStructure  {
         }
     }
 
+    /**
+     * Expects a subroutineName as param
+     * @param line
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
     private void SubroutineCall(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
-        AddXMLTag("symbol", line);
+        AddXMLTag("identifier", line);
         line = xml.get(lineNum);
-        if (line.matches(identifierReg)){ // SubroutineName
+        if (line.matches("\\(")){
             lineNum++;
-            AddXMLTag("identifier", line);
+            AddXMLTag("symbol", line);
             line = xml.get(lineNum);
-            if (line.matches("\\(")){
+            xMLStreamWriter.writeStartElement("expressionList");
+            ExpressionList(line);
+            xMLStreamWriter.writeEndElement();
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
                 lineNum++;
                 AddXMLTag("symbol", line);
-                line = xml.get(lineNum);
-                xMLStreamWriter.writeStartElement("expressionList");
-                xMLStreamWriter.writeStartElement("expression");
-                Expressions(line);
-                xMLStreamWriter.writeEndElement();
-                xMLStreamWriter.writeEndElement();
-                line = xml.get(lineNum);
-                if (line.matches("\\)")){
-                    lineNum++;
-                    AddXMLTag("symbol", line);
-                }
-            } // TODO: Throw Missing parentheses
-        } // TODO: Throw no subroutineName found
+            }
+        } else { // has .subroutineName
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            if (line.matches(identifierReg))
+                SubroutineCall(line);
+            else {
+                throw new JackCompilerException("Missing subroutine name", new Throwable());
+            }
+        }
     }
+
 
     private void AddXMLTag(String tag, String chars) throws XMLStreamException {
         xMLStreamWriter.writeStartElement(tag);
