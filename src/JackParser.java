@@ -1,9 +1,9 @@
+import ProgramStructure.Tokenizer;
 import error_pack.JackCompilerException;
 import ProgramStructure.JackStructure;
 
 
 import javax.xml.stream.XMLStreamException;
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 

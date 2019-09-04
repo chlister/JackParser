@@ -1,3 +1,5 @@
+package ProgramStructure;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.File;
