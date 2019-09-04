@@ -132,10 +132,131 @@ public class JackStructure {
     }
 
     /**
+     * Expects the 'do' keyword as param
+     * Will match the structure:
+     * 'do' subroutineCall ';'
+     * @param line -> 'do'
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void DoStatement(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("doStatement");
+
+        lineNum++;
+        AddXMLTag("keyword", line);     // do
+        line = xml.get(lineNum);
+        SubroutineCall(line);                // subroutine
+        line = xml.get(lineNum);
+        lineNum++;
+        AddXMLTag("symbol", line);      // ;
+
+        xMLStreamWriter.writeEndElement();
+
+    }
+
+    /**
+     * Expects 'if' as param
+     * Will match the structure:
+     * 'if' '(' expression ')' '{' statement '}' ('else' '{' statements '}')?
+     * If statement will end when the last '}' is encountered after statements
+     * @param line -> if
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void IfStatement(String line) throws XMLStreamException, JackCompilerException {
+        lineNum++;
+        xMLStreamWriter.writeStartElement("ifStatement");
+        AddXMLTag("keyword", line);
+        line = xml.get(lineNum);
+        if (line.matches("\\(")){
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            Expression(line);
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
+                lineNum++;
+                AddXMLTag("symbol", line);
+                line = xml.get(lineNum);
+                if (line.matches("\\{")){
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    line = xml.get(lineNum);
+                    Statements(line);
+                    line = xml.get(lineNum);
+                    if (line.matches("}")){
+                        lineNum++;
+                        AddXMLTag("symbol", line);
+                        line = xml.get(lineNum);
+                        if (line.matches("(else)")){
+                            lineNum++;
+                            AddXMLTag("keyword", line);
+                            line = xml.get(lineNum);
+                            if (line.matches("\\{")) {
+                                lineNum++;
+                                AddXMLTag("symbol", line);
+                                line = xml.get(lineNum);
+                                Statements(line);
+                                line = xml.get(lineNum);
+                                if (line.matches("}")) {
+                                    lineNum++;
+                                    AddXMLTag("symbol", line);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        xMLStreamWriter.writeEndElement(); // Ends if statement
+    }
+
+    /**
+     * Expects the 'while' keyword
+     * Will match the structure:
+     * 'while' '('expression')' '{' statements '}'
+     * while statement ends when '}' en encountered
+     * @param line -> 'while'
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void WhileStatement(String line) throws XMLStreamException, JackCompilerException {
+        lineNum++;
+        xMLStreamWriter.writeStartElement("whileStatement");
+        AddXMLTag("keyword", line);
+        line = xml.get(lineNum);
+        if  (line.matches("\\(")){
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            Expression(line);
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
+                lineNum++;
+                AddXMLTag("symbol", line);
+                line = xml.get(lineNum);
+                if (line.matches("\\{")){
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    line = xml.get(lineNum);
+                    Statements(line);
+                    line = xml.get(lineNum);
+                    if (line.matches("}")){
+                        lineNum++;
+                        AddXMLTag("symbol", line);
+                    }
+                }
+            }
+        }
+        xMLStreamWriter.writeEndElement(); // Ends whileStatement
+
+    }
+
+    /**
      * Expects to get 'return' as param
      * Will match the structure as:
      * 'return' expression ';'
-     * @param line
+     * @param line -> return
      * @throws XMLStreamException
      * @throws JackCompilerException
      */
@@ -247,21 +368,26 @@ public class JackStructure {
             AddXMLTag("symbol", line);
         }
         else if(line.matches(identifierReg)){ // VarName
-            lineNum++;
-            AddXMLTag("identifier", line);
-            line = xml.get(lineNum);
+//            lineNum++;
+//            AddXMLTag("identifier", line);
+//            line = xml.get(lineNum);
+            String nextLine = xml.get(lineNum+1);
             /*
               Next check the next line
               -> '.' (subroutineCall)       ((varName.subroutineCall))
               -> '[' (expression            ((varName[expression]))
               -> if none match              ( just a varName )
              */
-            if (line.matches("[.]") || line.matches("\\(")){ // SubroutineCall! ( varName. | varName( )
-//                SubroutineCall(line);
+            if (nextLine.matches("[.]") || nextLine.matches("\\(")){ // SubroutineCall! ( varName. | varName( )
+                SubroutineCall(line); // -> sending varNam|subroutineName to method
             }
-            else if (line.matches("[\\[]")) { // expression
+            else if (nextLine.matches("[\\[]")) { // expression
                 lineNum++;
-                AddXMLTag("symbol", line);
+                AddXMLTag("identifier", line); // varName
+                line = xml.get(lineNum);
+
+                lineNum++;
+                AddXMLTag("symbol", line); // symbol
                 line = xml.get(lineNum);
 
                 Expression(line);
@@ -271,6 +397,11 @@ public class JackStructure {
                     lineNum++;
                     AddXMLTag("symbol", line); // ]
                 }
+            }
+            else {
+                // just a varName
+                lineNum++;
+                AddXMLTag("identifier", line);
             }
         }
         else if(line.matches("\\(")){
@@ -292,6 +423,41 @@ public class JackStructure {
             AddXMLTag("symbol", line);
             line = xml.get(lineNum);
             Term(line);
+        }
+    }
+
+    /**
+     * Expects the 'identifier' as param
+     * Will match the structure:
+     * subroutineName '(' expressionList ')' | (className | varName)'.'subroutineName'('expressionList')'
+     * @param line -> identifier
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void SubroutineCall(String line) throws XMLStreamException, JackCompilerException {
+        lineNum++;
+        AddXMLTag("identifier", line);          // subroutineName|className|varName
+        line = xml.get(lineNum);
+        if (line.matches("[.]")){          // has className|varName'.'subroutineName
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            if (line.matches(identifierReg)){
+                lineNum++;
+                AddXMLTag("identifier", line);
+                line = xml.get(lineNum);
+            }
+        }
+        if (line.matches("\\(")){             // adding (expressionList)
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            ExpressionList(line);
+            line = xml.get(lineNum);
+            if (line.matches("\\)")){
+                lineNum++;
+                AddXMLTag("symbol", line);
+            }
         }
     }
 
