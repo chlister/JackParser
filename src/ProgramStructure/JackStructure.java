@@ -58,44 +58,193 @@ public class JackStructure {
         System.out.println(xml);
     }
 
+    /**
+     * Expects the first line to be 'class'
+     * then begins to compile the class structure:
+     * 'class' className '{' classVarDec* subroutineDec* '}'
+     * @param line -> 'class'
+     * @throws XMLStreamException
+     */
     private void ClassStructure(String line) throws XMLStreamException {
+        // check class keyword
+            // Add the identifier
+        // Check if next line is -> {
+        // Check for classVarDec*
+        // Check for subroutineDec*
+        // Check for end char -> }
+    }
 
+
+
+    /**
+     * Expects let|while|do|return|if as param
+     * Adds the statements tag to the statements
+     * @param line -> let|if|while|do|return
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void Statements(String line) throws XMLStreamException, JackCompilerException{
+        xMLStreamWriter.writeStartElement("statement");
+
+        Statement(line);
+
+        xMLStreamWriter.writeEndElement();
+    }
+
+    /**
+     * Expects let | while | do | return | if
+     * Finds which statement will get executed
+     * @param line -> let|if|while|do|return
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void Statement(String line) throws XMLStreamException, JackCompilerException{
+        /*
+        line should contain
+        -> let
+        -> if
+        -> while
+        -> do
+        -> return
+         */
+        switch (line){
+            case "let":
+                LetStatement(line);
+                break;
+            case "while":
+                WhileStatement(line);
+                break;
+            case "if":
+                IfStatement(line);
+                break;
+            case "do":
+                DoStatement(line);
+                break;
+            case "return":
+                ReturnStatement(line);
+                break;
+        }
+        line = xml.get(lineNum);
+        if (line.matches("(let|while|do|return|if)")){
+            // New statement
+            Statement(line);
+        }
+    }
+
+    /**
+     * Expects to get 'return' as param
+     * Will match the structure as:
+     * 'return' expression ';'
+     * @param line
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void ReturnStatement(String line) throws XMLStreamException, JackCompilerException {
+        lineNum++;
+        xMLStreamWriter.writeStartElement("returnStatement");
+        AddXMLTag("keyword", line);
+        line = xml.get(lineNum);
+        if (!line.matches(";")){
+            Expression(line);
+        }
+        lineNum++;
+        AddXMLTag("symbol", line);
+    }
+
+    /**
+     * Method expects a let statement
+     * Will then break up the let statement if it matches this structure:
+     * 'let' varName ('['expression']')? '=' expression ';'
+     * @param line -> 'let'
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void LetStatement(String line) throws XMLStreamException, JackCompilerException {
+        if (line.matches("(let)")){
+            lineNum++;
+            xMLStreamWriter.writeStartElement("letStatement");
+            AddXMLTag("keyword", line);
+            line = xml.get(lineNum);
+            if (line.matches(identifierReg)){ // varName
+                lineNum++;
+                AddXMLTag("identifier", line);
+                line = xml.get(lineNum);
+                if (line.matches("\\[")) { // expression
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    line = xml.get(lineNum);
+                    Expression(line);
+                    line = xml.get(lineNum);
+                    if (line.matches("]")){ // End [expression]
+                        lineNum++;
+                        AddXMLTag("symbol", line);
+                    }
+                }
+                    // Last part of letStatement ( = expression; )
+                line = xml.get(lineNum);
+                if (line.matches("=")){
+                    lineNum++;
+                    AddXMLTag("symbol", line);
+                    line = xml.get(lineNum);
+                    Expression(line);
+                    line = xml.get(lineNum);
+                    if (line.matches(";")){
+                        lineNum++;
+                        AddXMLTag("symbol", line);
+                    }
+                }
+            }
+        }
+        xMLStreamWriter.writeEndElement(); // ends letStatement
+    }
+
+    /**
+     * Method expects to get a 'term'
+     * Term: IntegerConstant | stringConstant | keywordConstant | varName | varName'['expression']' | subroutineCall | '('expression')' | unaryOp Term
+     * Will keep adding expressions if encountering a ','
+     * @param line
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void Expression(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("expression");
+        Term(line);
+        xMLStreamWriter.writeEndElement();
+        line = xml.get(lineNum);
+        if (line.matches(",")){ // Checks if expression ends with a ',' -> then adds more
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            Expression(line);
+        }
     }
 
     /**
      * Method expects to get:
      * Integer|String|Keyword|UnaryOp|Identifier|'('
+     * Term: IntegerConstant | stringConstant | keywordConstant | varName | varName'['expression']' | subroutineCall | '('expression')' | unaryOp Term
+     * Will keep adding terms if encountering a operator
      * @param line
      * @throws XMLStreamException
      * @throws JackCompilerException
      */
     private void Term(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("term");
         if (line.matches(intReg)){
             lineNum++;
             AddXMLTag("integerConstant", line);
-            line=xml.get(lineNum);
-//            CheckEndOfExpression(line);
         }
         else if (line.matches(stringReg)){
             lineNum++;
             AddXMLTag("stringConstant", line);
-            line=xml.get(lineNum);
-//            CheckEndOfExpression(line);
         }
         else if(line.matches(keywordConstantReg)){
             lineNum++;
             AddXMLTag("keyword", line);
-            line=xml.get(lineNum);
-//            CheckEndOfExpression(line);
         }
         else if(line.matches(unaryTermReg)){
             lineNum++;
             AddXMLTag("symbol", line);
-            line=xml.get(lineNum);
-
-//            Expressions(line);
-            line=xml.get(lineNum);
-//            CheckEndOfExpression(line);
         }
         else if(line.matches(identifierReg)){ // VarName
             lineNum++;
@@ -105,7 +254,7 @@ public class JackStructure {
               Next check the next line
               -> '.' (subroutineCall)       ((varName.subroutineCall))
               -> '[' (expression            ((varName[expression]))
-              -> ; (Close the expression)   ((varName;))
+              -> if none match              ( just a varName )
              */
             if (line.matches("[.]") || line.matches("\\(")){ // SubroutineCall! ( varName. | varName( )
 //                SubroutineCall(line);
@@ -114,33 +263,52 @@ public class JackStructure {
                 lineNum++;
                 AddXMLTag("symbol", line);
                 line = xml.get(lineNum);
-                xMLStreamWriter.writeStartElement("expression");
 
-//                Expressions(line);
+                Expression(line);
 
-                xMLStreamWriter.writeEndElement();
                 line = xml.get(lineNum);
-                AddXMLTag("symbol", line); // ]
-                lineNum++;
+                if (line.matches("]")){
+                    lineNum++;
+                    AddXMLTag("symbol", line); // ]
+                }
             }
         }
         else if(line.matches("\\(")){
             lineNum++;
             AddXMLTag("symbol", line);
             line = xml.get(lineNum);
-            xMLStreamWriter.writeStartElement("expression");
-            xMLStreamWriter.writeStartElement("term");
-            Term(line);
-            xMLStreamWriter.writeEndElement();
-            xMLStreamWriter.writeEndElement();
+            Expression(line);
             line = xml.get(lineNum);
             if (line.matches("\\)")){
                 lineNum++;
                 AddXMLTag("symbol", line);
             }
         }
+        // Close Term tag
+        xMLStreamWriter.writeEndElement();
+        line = xml.get(lineNum);
+        if (line.matches(opReg)){ // Checks if term ends with a operator -> then adds more
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            Term(line);
+        }
     }
 
+    /**
+     * Method expects a term as param
+     * If the param is ')' then no expression or term tag will be called
+     * Adds the expressionList tag to the XML
+     * @param line -> term
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void ExpressionList(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("expressionList");
+        if (!line.matches("\\)"))
+            Expression(line);
+        xMLStreamWriter.writeEndElement();
+    }
 
     /**
      * Expects to get the 'var' keyword as param
