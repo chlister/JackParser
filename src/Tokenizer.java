@@ -1,6 +1,3 @@
-import javafx.css.Match;
-
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.File;
@@ -10,7 +7,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -55,7 +51,7 @@ public class Tokenizer {
                 String line = reader.nextLine().stripLeading(); // Strip first empty spaces - we don't need those
 //                System.out.println(line);
 
-                if (!line.startsWith("//") && !line.startsWith("/**") && !line.isBlank()) { // filter comments and blank lines
+                if (!line.startsWith("//") && !line.startsWith("/**") && !line.startsWith("*") && !line.isBlank()) { // filter comments and blank lines
                     if (line.contains("//"))
                         line = line.substring(0, line.indexOf("//"));
                     String allSplitter = "(\\d+)|([;\\[{}(),.+\\-*/&|<>~=\\]])|([\\\"]\\b.*[\\\"])|([A-Za-z]\\w+|[A-Za-z])";

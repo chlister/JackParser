@@ -5,6 +5,7 @@ import error_pack.JackCompilerException;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
@@ -21,24 +22,37 @@ public class JackStructure {
     private static final String keywordConstantReg = "(true|false|null|this)\\w*";
     private static final String stringReg = "([\\\"]\\b.*[\\\"])";
     private List<String> xml;
+    private String outPutFile;
     private int lineNum = 0;
     private StringWriter stringWriter;
     private XMLOutputFactory xMLOutputFactory;
     private XMLStreamWriter xMLStreamWriter;
-
     /**
      * Method will need a list of lines from the tokenizer
      * It runs via a linenumber, which will get incremented in each method - the next line will thereafter
      * get extracted by the method and a if/else statement will interpret the next line, deciding if the
      * next statement can be executed or not
      */
-    public void ReadDocument(List<String> _xml) throws XMLStreamException, IOException, JackCompilerException {
+    public JackStructure(List<String> _xml, String _outPutFile){
+        xml = _xml;
+        outPutFile = _outPutFile;
+    }
+
+    /**
+     * Starts reading the List<String> provided
+     * Saves the output in the outPutFile specified
+     * @throws XMLStreamException
+     * @throws IOException
+     * @throws JackCompilerException
+     */
+    public void ReadDocument() throws XMLStreamException, IOException, JackCompilerException {
         try {
-            xml=_xml; // TODO: put in ctor
             stringWriter = new StringWriter();
 
+
             xMLOutputFactory = XMLOutputFactory.newInstance();
-            xMLStreamWriter = xMLOutputFactory.createXMLStreamWriter(stringWriter);
+//            xMLStreamWriter = xMLOutputFactory.createXMLStreamWriter(stringWriter);
+            xMLStreamWriter = xMLOutputFactory.createXMLStreamWriter(new FileWriter(outPutFile));
 
             xMLStreamWriter.writeStartDocument();
 
@@ -53,9 +67,7 @@ public class JackStructure {
         xMLStreamWriter.flush();
         xMLStreamWriter.close();
 
-        String xml = stringWriter.getBuffer().toString();
-        stringWriter.close();
-        System.out.println(xml);
+
     }
 
     /**
@@ -64,8 +76,9 @@ public class JackStructure {
      * 'class' className '{' classVarDec* subroutineDec* '}'
      * @param line -> 'class'
      * @throws XMLStreamException
+     * @throws JackCompilerException
      */
-    private void ClassStructure(String line) throws XMLStreamException {
+    private void ClassStructure(String line) throws XMLStreamException, JackCompilerException {
         // check class keyword
             // Add the identifier
         // Check if next line is -> {
@@ -87,21 +100,173 @@ public class JackStructure {
         AddXMLTag("symbol", line);
         line = xml.get(lineNum);
         if (line.matches("(static|field)")){
-            // TODO: classVarDec
+            ClassVarDec(line);
         }
         line = xml.get(lineNum);
         if (line.matches("(constructor|function|method)")){
-            // TODO: subroutineDec
+            SubroutineDec(line);
         }
         line = xml.get(lineNum);
         // symbol }
-        lineNum++;
         AddXMLTag("symbol", line);
 
         xMLStreamWriter.writeEndElement(); // end class tag
     }
 
+    /**
+     * Expects constructor|function|method as param
+     * Will match the structure:
+     * ('constructor'|'function'|'method') ('void'|type)subroutineName'('parameterList')'subroutineBody
+     * @param line -> constructor|function|method
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void SubroutineDec(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("subroutineDec");
 
+        lineNum++;
+        AddXMLTag("keyword", line); // constructor|function|method
+        line = xml.get(lineNum);
+
+        lineNum++;
+        AddXMLTag("keyword", line); // void | type
+        line = xml.get(lineNum);
+
+        lineNum++;
+        AddXMLTag("identifier", line); // subroutineName
+        line = xml.get(lineNum);
+
+        lineNum++;
+        AddXMLTag("symbol", line); // (
+        line = xml.get(lineNum);
+
+        ParameterList(line);
+
+        line = xml.get(lineNum);
+        AddXMLTag("symbol", line); // )
+        lineNum++;
+        line = xml.get(lineNum);
+
+        SubroutineBody(line);
+
+        xMLStreamWriter.writeEndElement(); // end subroutineDec tag
+
+        line = xml.get(lineNum);
+        if (line.matches("(constructor|function|method)"))
+            SubroutineDec(line);
+
+    }
+
+    /**
+     * Expects a type as param
+     * Will match the structure:
+     * ((type varName) (',' type varName)*)?
+     * Will add as many as needed or a empty parameterList tag
+     * @param line -> type
+     * @throws XMLStreamException
+     */
+    private void ParameterList(String line) throws XMLStreamException {
+        xMLStreamWriter.writeStartElement("parameterList");
+
+        if (line.matches(typeReg)){
+            AddParam(line);
+        }
+
+        xMLStreamWriter.writeEndElement(); // end parameterList tag
+    }
+
+    /**
+     * Expects a type as param
+     * Will add as many params as needed
+     * @param line -> type
+     * @throws XMLStreamException
+     */
+    private void AddParam(String line) throws XMLStreamException {
+        lineNum++;
+        AddXMLTag("keyword", line); // type
+        line = xml.get(lineNum);
+        lineNum++;
+        AddXMLTag("identifier", line);
+        line = xml.get(lineNum);
+        if (line.matches(",")){
+            lineNum++;
+            AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            AddParam(line);
+        }
+    }
+
+    /**
+     * Expects the symbol '{'
+     * Will match the structure:
+     * '{'varDec* statements'}'
+     * @param line -> '{'
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void SubroutineBody(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("subroutineBody");
+
+        lineNum++;
+        AddXMLTag("symbol", line); // {
+        line = xml.get(lineNum);
+        if (line.matches("(var)")){
+            VarDec(line);
+        }
+        line = xml.get(lineNum);
+        if (!line.matches("}")){
+            Statements(line);
+        }
+
+        line = xml.get(lineNum);
+        AddXMLTag("symbol", line); // }
+        lineNum++;
+
+        xMLStreamWriter.writeEndElement(); // end subroutineBody tag
+
+
+
+    }
+
+    /**
+     * Expects to get static|field as param
+     * Will match the structure:
+     * ('static'|'field') type varName (','varName)* ';'
+     * Can add as many as needed
+     * @param line -> static|field
+     * @throws XMLStreamException
+     * @throws JackCompilerException
+     */
+    private void ClassVarDec(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("classVarDec");
+
+        lineNum++;
+        AddXMLTag("keyword", line); // static | field
+        line = xml.get(lineNum);
+        lineNum++;
+        AddXMLTag("keyword", line); // type
+        line = xml.get(lineNum);
+        lineNum++;
+        AddXMLTag("identifier", line); // varName
+        line = xml.get(lineNum);
+        if (line.matches(",")){
+            lineNum++;
+            AddXMLTag("symbol", line); // type
+            line = xml.get(lineNum);
+            AddIdentifier(line);
+        }
+        line = xml.get(lineNum);
+        if (line.matches(";")){
+            lineNum++;
+            AddXMLTag("symbol", line); // ;
+        }
+        xMLStreamWriter.writeEndElement(); // end classVarDec tag
+        line = xml.get(lineNum);
+        if (line.matches("(static|field)")){
+            ClassVarDec(line);
+        }
+
+    }
 
     /**
      * Expects let|while|do|return|if as param
@@ -111,7 +276,7 @@ public class JackStructure {
      * @throws JackCompilerException
      */
     private void Statements(String line) throws XMLStreamException, JackCompilerException{
-        xMLStreamWriter.writeStartElement("statement");
+        xMLStreamWriter.writeStartElement("statements");
 
         Statement(line);
 
@@ -295,8 +460,10 @@ public class JackStructure {
         if (!line.matches(";")){
             Expression(line);
         }
+        line = xml.get(lineNum);
         lineNum++;
         AddXMLTag("symbol", line);
+        xMLStreamWriter.writeEndElement(); // end returnStatement
     }
 
     /**
@@ -308,9 +475,10 @@ public class JackStructure {
      * @throws JackCompilerException
      */
     private void LetStatement(String line) throws XMLStreamException, JackCompilerException {
+        xMLStreamWriter.writeStartElement("letStatement");
+
         if (line.matches("(let)")){
             lineNum++;
-            xMLStreamWriter.writeStartElement("letStatement");
             AddXMLTag("keyword", line);
             line = xml.get(lineNum);
             if (line.matches(identifierReg)){ // varName
@@ -384,7 +552,7 @@ public class JackStructure {
         }
         else if (line.matches(stringReg)){
             lineNum++;
-            AddXMLTag("stringConstant", line);
+            AddXMLTag("stringConstant", line.substring((line.indexOf("\"")+1), line.lastIndexOf("\"")));
         }
         else if(line.matches(keywordConstantReg)){
             lineNum++;
@@ -393,6 +561,8 @@ public class JackStructure {
         else if(line.matches(unaryTermReg)){
             lineNum++;
             AddXMLTag("symbol", line);
+            line = xml.get(lineNum);
+            Term(line);
         }
         else if(line.matches(identifierReg)){ // VarName
 //            lineNum++;
@@ -513,26 +683,27 @@ public class JackStructure {
      */
     private void VarDec(String line) throws XMLStreamException, JackCompilerException {
         lineNum++;
-        xMLStreamWriter.writeStartElement(" varDec ");
-        AddXMLTag(" keyword ", line);
+        xMLStreamWriter.writeStartElement("varDec");
+        AddXMLTag("keyword", line);
         line=xml.get(lineNum);
         if (line.matches(typeReg)){ // needs type
             lineNum++;
-            AddXMLTag(" keyword ", line); // type
-
+            AddXMLTag("keyword", line); // type
             line=xml.get(lineNum);
-            AddXMLTag(" identifier ",line); // varName
+
+            lineNum++;
+            AddXMLTag("identifier",line); // varName
             line = xml.get(lineNum);
             if (line.matches(",")){
                 lineNum++;
-                AddXMLTag(" symbol ",line); // symbol
+                AddXMLTag("symbol",line); // symbol
                 line=xml.get(lineNum);
                 AddIdentifier(line); // Sends the identifier to be added to the XML
             }
             line = xml.get(lineNum);
             if (line.matches("\\;")){ // End of varDec
                 lineNum++;
-                AddXMLTag(" symbol ",line); // ;
+                AddXMLTag("symbol",line); // ;
                 line=xml.get(lineNum);
                 xMLStreamWriter.writeEndElement();
                 if (line.matches("(var)\\w*")) // if next line is a var then add another
@@ -542,15 +713,14 @@ public class JackStructure {
     }
 
     /**
-     * Can add more identifiers to the XML
-     * Adds as many as necessary
+     * Expects to get an identifier as param
+     * Adds as many identifiers as necessary
      * @param line identifier
      * @throws XMLStreamException
-     * @throws JackCompilerException
      */
-    private void AddIdentifier(String line) throws XMLStreamException, JackCompilerException {
+    private void AddIdentifier(String line) throws XMLStreamException {
         lineNum++;
-        AddXMLTag(" identifier ", line);
+        AddXMLTag("identifier", line);
         line = xml.get(lineNum);
         if (line.matches(" , ")){
             lineNum++;
