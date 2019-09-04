@@ -72,6 +72,33 @@ public class JackStructure {
         // Check for classVarDec*
         // Check for subroutineDec*
         // Check for end char -> }
+        xMLStreamWriter.writeStartElement("class");
+
+        // keyword
+        lineNum++;
+        AddXMLTag("keyword", line);
+        line = xml.get(lineNum);
+        // identifier
+        lineNum++;
+        AddXMLTag("identifier", line);
+        line = xml.get(lineNum);
+        // symbol {
+        lineNum++;
+        AddXMLTag("symbol", line);
+        line = xml.get(lineNum);
+        if (line.matches("(static|field)")){
+            // TODO: classVarDec
+        }
+        line = xml.get(lineNum);
+        if (line.matches("(constructor|function|method)")){
+            // TODO: subroutineDec
+        }
+        line = xml.get(lineNum);
+        // symbol }
+        lineNum++;
+        AddXMLTag("symbol", line);
+
+        xMLStreamWriter.writeEndElement(); // end class tag
     }
 
 
