@@ -72,7 +72,7 @@ public class Tokenizer {
                         else if (match.matches(symbolReg)) {
                             res.add(match);
 
-//                            System.out.println("Symbol: " + match);
+//                            System.out.println("ProgramStructure.Symbol: " + match);
                             xMLStreamWriter.writeStartElement("symbol");
                             xMLStreamWriter.writeCharacters(match);
                             xMLStreamWriter.writeEndElement();

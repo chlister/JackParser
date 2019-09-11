@@ -14,9 +14,9 @@ public class JackParser {
     public static void main(String args[]){
         // Later args will contain the filename
         // Documents/School/nand2tetris/nand2tetris/projects/10/ArrayTest/Main.jack
-//        String path = "/home/zbcmakar/Documents/School/nand2tetris/nand2tetris/projects/10/Square/Square.jack";
+        String path = "/home/zbcmakar/Documents/School/nand2tetris/nand2tetris/projects/11/Average/Main.jack";
         // win - E:\OneDrive - EFIF\H5\nand2tetris softwaresuite-20190805\nand2tetris\projects\10\ArrayTest
-        String path = "E:\\OneDrive - EFIF\\H5\\nand2tetris softwaresuite-20190805\\nand2tetris\\projects\\10\\Square\\SquareGame.jack";
+//        String path = "E:\\OneDrive - EFIF\\H5\\nand2tetris softwaresuite-20190805\\nand2tetris\\projects\\10\\Square\\SquareGame.jack";
         String filePath;
         String fileName;
         if (System.getProperty("os.name").contains("Windows")){
