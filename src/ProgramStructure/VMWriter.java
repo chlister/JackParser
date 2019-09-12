@@ -25,6 +25,7 @@ public class VMWriter {
      * Writes a VM push command
      *
      * @param segment
+     * @param nIndex
      */
     public void writePush(String segment, int nIndex) {
         if (segment.equals("var")) {
@@ -46,6 +47,7 @@ public class VMWriter {
      * Writes a VM pop command
      *
      * @param segment
+     * @param nIndex
      */
     public void writePop(String segment, int nIndex) {
         if (segment.equals("var")) {
